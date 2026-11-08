@@ -1,4 +1,4 @@
-import { withUser } from "@/src/server/auth/context.ts";
+import { withUser } from "@/src/server";
 /**
  * THE ARTIFACT-UI ROUTE (owner, 2026-10-07): persists the learner's invert
  * switch onto a demo/figure steer message (details.ui.inverted) so it

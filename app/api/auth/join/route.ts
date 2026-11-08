@@ -3,9 +3,7 @@
  * The invite decides the role and, when it pins one, the email.
  */
 
-import { joinWithInvite, validateCredentials } from "@/src/server/auth/accounts.ts";
-import { jsonError, readJson, signedInResponse } from "@/src/server/auth/http.ts";
-import { pendingInvite } from "@/src/store/users.ts";
+import { joinWithInvite, validateCredentials, jsonError, readJson, signedInResponse, pendingInvite } from "@/src/server";
 
 export const dynamic = "force-dynamic";
 

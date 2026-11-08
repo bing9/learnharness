@@ -1,4 +1,4 @@
-import { withUser } from "@/src/server/auth/context.ts";
+import { withUser } from "@/src/server";
 /**
  * GET /api/graph/costs — the graph view's cost pill (2026-09 graph cost
  * metrics wave): what the graph PIPELINE cost, folded read-time from the

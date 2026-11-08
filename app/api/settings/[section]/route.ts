@@ -1,4 +1,4 @@
-import { withUser } from "@/src/server/auth/context.ts";
+import { withUser } from "@/src/server";
 /**
  * PUT /api/settings/[section] — section-scoped record writes
  * (settings-storage wave, 2026-09-19). One PUT replaces ONE section

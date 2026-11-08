@@ -3,9 +3,7 @@
  * and the client shell both call it to know where they stand.
  */
 
-import { resolveScope } from "@/src/server/auth/context.ts";
-import { getUserById } from "@/src/store/users.ts";
-import { publicAccount } from "@/src/server/auth/accounts.ts";
+import { resolveScope, getUserById, publicAccount } from "@/src/server";
 
 export const dynamic = "force-dynamic";
 

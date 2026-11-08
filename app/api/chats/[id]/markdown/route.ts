@@ -1,4 +1,4 @@
-import { withUser } from "@/src/server/auth/context.ts";
+import { withUser } from "@/src/server";
 /**
  * THE SESSION MARKDOWN EXPORT (owner, release polish 2026-10-06): the
  * user-facing export the session-markdown engine was built for — the

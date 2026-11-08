@@ -1,4 +1,4 @@
-import { withUser } from "@/src/server/auth/context.ts";
+import { withUser } from "@/src/server";
 /**
  * PUT /api/keys/:id — save one key; DELETE — remove it (auth-keys wave,
  * 2026-09-19). `id` is the env-var/file key name (OPENROUTER_API_KEY, …).

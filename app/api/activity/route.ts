@@ -1,4 +1,4 @@
-import { withUser } from "@/src/server/auth/context.ts";
+import { withUser } from "@/src/server";
 /**
  * GET /api/activity — the dock's one poll: every running background
  * process, every view (chat, home, everywhere). Composition only — the

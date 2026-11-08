@@ -1,7 +1,7 @@
 import { Home } from "@/components/home";
 import { readSettingsRecord } from "@/src/server";
 import { resolveSettings, slotsConfigured } from "@/src/core";
-import { withUserScope } from "@/src/server/auth/context.ts";
+import { withUserScope } from "@/src/server";
 
 // Dynamic: the configured state is server-rendered into the page (the
 // setup CTA's truth on the first frame), and every navigation re-reads

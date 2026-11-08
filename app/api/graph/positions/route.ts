@@ -1,4 +1,4 @@
-import { withUser } from "@/src/server/auth/context.ts";
+import { withUser } from "@/src/server";
 /**
  * PUT /api/graph/positions — the live-physics drag commit. The client
  * anneals a drag to rest and sends the new positions; the server

@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { SetupForm } from "@/components/auth/forms";
-import { countUsers } from "@/src/store/users.ts";
+import { countUsers } from "@/src/server";
 
 export const dynamic = "force-dynamic";
 

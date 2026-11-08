@@ -1,4 +1,4 @@
-import { withUser } from "@/src/server/auth/context.ts";
+import { withUser } from "@/src/server";
 /**
  * GET /api/search — the search engines' status (search wave, 2026-09-20):
  * the honest availability signal the settings UI explains from (the

@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { LoginForm } from "@/components/auth/forms";
-import { resolveScope } from "@/src/server/auth/context.ts";
-import { countUsers } from "@/src/store/users.ts";
+import { resolveScope, countUsers } from "@/src/server";
 
 export const dynamic = "force-dynamic";
 

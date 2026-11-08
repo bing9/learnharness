@@ -1,4 +1,4 @@
-import { withUser } from "@/src/server/auth/context.ts";
+import { withUser } from "@/src/server";
 /**
  * PUT/DELETE /api/settings/prompts/[...segment] — the override TEXT for
  * one prompt segment (settings-storage wave, 2026-09-19).

@@ -1,4 +1,4 @@
-import { withUser } from "@/src/server/auth/context.ts";
+import { withUser } from "@/src/server";
 /**
  * GET /api/graph/status — the in-flight background extraction runs
  * (vision §1: the pipeline status must be visible on the home graph).

@@ -5,9 +5,7 @@
  * be claimed by a stranger once it is configured.
  */
 
-import { countUsers } from "@/src/store/users.ts";
-import { createFirstAdmin, validateCredentials } from "@/src/server/auth/accounts.ts";
-import { jsonError, readJson, signedInResponse } from "@/src/server/auth/http.ts";
+import { countUsers, createFirstAdmin, validateCredentials, jsonError, readJson, signedInResponse } from "@/src/server";
 
 export const dynamic = "force-dynamic";
 

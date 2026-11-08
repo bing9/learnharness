@@ -1,4 +1,4 @@
-import { withUser } from "@/src/server/auth/context.ts";
+import { withUser } from "@/src/server";
 /**
  * THE SILENT DISMISSAL ROUTE (owner design 2026-10-03, "A2"): ESC-abort
  * from a pending question writes the dismissed toolResult to the record

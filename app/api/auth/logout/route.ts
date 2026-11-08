@@ -2,7 +2,7 @@
  * POST /api/auth/logout — clear the session cookie (mobile-web).
  */
 
-import { clearSessionCookie, isSecureRequest } from "@/src/server/auth/session.ts";
+import { clearSessionCookie, isSecureRequest } from "@/src/server";
 
 export const dynamic = "force-dynamic";
 

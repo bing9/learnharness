@@ -251,6 +251,12 @@ test("nested enter/leave depth keeps the drop overlay until the zone is left; no
 test("production AppShell places the sidebar outside its content-only drop zone", () => {
 	const source = readFileSync(new URL("../components/sidebar.tsx", import.meta.url), "utf8");
 	const shell = source.slice(source.indexOf("export function AppShell("));
-	assert.match(shell, /<SessionsSidebar\s*\/>\s*<FilePathDropZone\b[^>]*>\{children\}<\/FilePathDropZone>/);
+	// Sidebar before the drop zone, and the drop zone wraps only the page
+	// content — the mobile drawer backdrop (web shell) may sit between
+	// them, also outside the drop zone.
+	const sidebarAt = shell.indexOf("<SessionsSidebar");
+	const zoneAt = shell.indexOf("<FilePathDropZone");
+	assert.ok(sidebarAt !== -1 && zoneAt !== -1 && sidebarAt < zoneAt);
+	assert.match(shell, /<FilePathDropZone\b[^>]*>\{children\}<\/FilePathDropZone>/);
 	assert.doesNotMatch(shell, /<FilePathDropZone\b[^>]*>[\s\S]*<SessionsSidebar/);
 });

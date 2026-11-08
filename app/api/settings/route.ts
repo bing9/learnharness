@@ -1,4 +1,4 @@
-import { withUser } from "@/src/server/auth/context.ts";
+import { withUser } from "@/src/server";
 /**
  * GET /api/settings — THE user settings record (settings-storage wave,
  * 2026-09-19): the whole delta record at data/settings.json (config.

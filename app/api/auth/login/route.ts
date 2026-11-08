@@ -2,8 +2,7 @@
  * POST /api/auth/login — email + password → session cookie (mobile-web).
  */
 
-import { authenticate, loginBlocked } from "@/src/server/auth/accounts.ts";
-import { jsonError, readJson, signedInResponse } from "@/src/server/auth/http.ts";
+import { authenticate, loginBlocked, jsonError, readJson, signedInResponse } from "@/src/server";
 
 export const dynamic = "force-dynamic";
 

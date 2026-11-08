@@ -3,10 +3,7 @@
  * Admin only: every handler refuses non-admins with 403.
  */
 
-import { requireAdmin, withUser } from "@/src/server/auth/context.ts";
-import { createUserByAdmin, publicAccount, validateCredentials } from "@/src/server/auth/accounts.ts";
-import { jsonError, readJson } from "@/src/server/auth/http.ts";
-import { createInvite, listAccounts, listInvites } from "@/src/store/users.ts";
+import { requireAdmin, withUser, createUserByAdmin, publicAccount, validateCredentials, jsonError, readJson, createInvite, listAccounts, listInvites } from "@/src/server";
 
 export const dynamic = "force-dynamic";
 

@@ -1,4 +1,4 @@
-import { withUser } from "@/src/server/auth/context.ts";
+import { withUser } from "@/src/server";
 /**
  * POST-less BYOK mint: the renderer never holds the real Deepgram key.
  *

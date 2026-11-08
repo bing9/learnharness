@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { JoinForm } from "@/components/auth/forms";
-import { pendingInvite, countUsers } from "@/src/store/users.ts";
+import { pendingInvite, countUsers } from "@/src/server";
 
 export const dynamic = "force-dynamic";
 

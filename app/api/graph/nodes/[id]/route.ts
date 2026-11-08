@@ -1,4 +1,4 @@
-import { withUser } from "@/src/server/auth/context.ts";
+import { withUser } from "@/src/server";
 import { deleteGraphNode } from "@/src/server";
 
 /**

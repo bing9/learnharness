@@ -1,4 +1,4 @@
-import { withUser } from "@/src/server/auth/context.ts";
+import { withUser } from "@/src/server";
 import { claudeCodeInstallationResponse } from "@/src/server";
 
 /** Installation/version only; never reads auth status or makes a model request. */

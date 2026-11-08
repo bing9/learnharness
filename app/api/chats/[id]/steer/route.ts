@@ -1,4 +1,4 @@
-import { withUser } from "@/src/server/auth/context.ts";
+import { withUser } from "@/src/server";
 // POST /api/chats/[id]/steer — the composer's mid-turn steering rail
 // (owner arc 2026-10-03). The learner's message for a RUNNING turn rides
 // pi's steering queue: drained at the next response boundary INSIDE the

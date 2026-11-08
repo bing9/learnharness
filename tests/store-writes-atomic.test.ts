@@ -60,39 +60,39 @@ describe("failed saves leave the old file whole", () => {
 	});
 
 	it("settings", (t) => {
-		assertAllOrNothing(t, config.SETTINGS_FILE,
+		assertAllOrNothing(t, config.settingsFile(),
 			() => writeSettings({ version: 1, appearance: { mode: "light" } }),
 			() => writeSettings({ version: 1, appearance: { mode: "dark" } }));
 	});
 
 	it("notes sources: import and delete", (t) => {
 		const source = (id: string) => ({ id, filePath: `/notes/${id}.md`, importedAt: "2026-10-31T00:00:00.000Z" });
-		assertAllOrNothing(t, config.SOURCES_FILE, () => graphStore.upsertSource(source("src_a")), () => graphStore.upsertSource(source("src_b")));
-		assertAllOrNothing(t, config.SOURCES_FILE, () => {}, () => graphStore.deleteSources(new Set(["src_a"])));
+		assertAllOrNothing(t, config.sourcesFile(), () => graphStore.upsertSource(source("src_a")), () => graphStore.upsertSource(source("src_b")));
+		assertAllOrNothing(t, config.sourcesFile(), () => {}, () => graphStore.deleteSources(new Set(["src_a"])));
 	});
 
 	it("graph render settings", (t) => {
-		assertAllOrNothing(t, config.RENDER_SETTINGS_FILE, () => writeRenderSettings({}), () => writeRenderSettings({ linkDistance: 80 }));
+		assertAllOrNothing(t, config.renderSettingsFile(), () => writeRenderSettings({}), () => writeRenderSettings({ linkDistance: 80 }));
 	});
 
 	it("graph format stamp", (t) => {
-		fs.rmSync(config.GRAPH_FORMAT_FILE, { force: true });
-		assertAllOrNothing(t, config.GRAPH_FORMAT_FILE, () => {}, () => ensureGraphFormat());
+		fs.rmSync(config.graphFormatFile(), { force: true });
+		assertAllOrNothing(t, config.graphFormatFile(), () => {}, () => ensureGraphFormat());
 	});
 
 	it("graph positions and ledgers", (t) => {
-		assertAllOrNothing(t, config.POSITIONS_FILE, () => graphStore.writePositions({ a: { x: 1, y: 1 } }), () => graphStore.writePositions({ a: { x: 2, y: 2 } }));
+		assertAllOrNothing(t, config.positionsFile(), () => graphStore.writePositions({ a: { x: 1, y: 1 } }), () => graphStore.writePositions({ a: { x: 2, y: 2 } }));
 		assertAllOrNothing(t, config.LEDGER_FILES.chains, () => graphStore.rewriteLedgers({ chains: [] }), () => graphStore.rewriteLedgers({ chains: [] }));
 	});
 
 	it("source organization", (t) => {
-		assertAllOrNothing(t, config.SOURCE_ORGANIZATION_FILE,
+		assertAllOrNothing(t, config.sourceOrganizationFile(),
 			() => sourceOrganizationStore.write({ version: 1, folders: [], placements: {} }),
 			() => sourceOrganizationStore.write({ version: 1, folders: [{ id: "fld_a", name: "A", parentId: null, createdAt: "2026-10-31T00:00:00.000Z" }], placements: {} }));
 	});
 
 	it("prompt edit", (t) => {
-		assertAllOrNothing(t, path.join(config.PROMPTS_OVERRIDE_DIR, "system-prompt.md"),
+		assertAllOrNothing(t, path.join(config.promptsOverrideDir(), "system-prompt.md"),
 			() => promptOverrides.writeOverride("system-prompt.md", "old prompt"),
 			() => promptOverrides.writeOverride("system-prompt.md", "new prompt"));
 	});
@@ -113,19 +113,19 @@ describe("Windows sharing violations: per-writer compatibility policy (modeled)"
 			const { id } = jobStore.createJob({ kind: "research", chatId: "chat_policy", toolCallId: "tc_update" });
 			return { file: path.join(config.PATHS.data, "jobs", `${id}.json`), save: () => jobStore.updateJob(id, { status: "done" }) };
 		} },
-		{ name: "settings", fallback: true, prepare: () => ({ file: config.SETTINGS_FILE, save: () => writeSettings({ version: 1, appearance: { mode: "light" } }) }) },
-		{ name: "source update", fallback: true, prepare: () => ({ file: config.SOURCES_FILE, save: () => graphStore.upsertSource({ id: "src_policy", filePath: "/synthetic.md", importedAt: "2026-11-01T00:00:00Z" }) }) },
-		{ name: "render settings", fallback: true, prepare: () => ({ file: config.RENDER_SETTINGS_FILE, save: () => writeRenderSettings({ linkDistance: 90 }) }) },
+		{ name: "settings", fallback: true, prepare: () => ({ file: config.settingsFile(), save: () => writeSettings({ version: 1, appearance: { mode: "light" } }) }) },
+		{ name: "source update", fallback: true, prepare: () => ({ file: config.sourcesFile(), save: () => graphStore.upsertSource({ id: "src_policy", filePath: "/synthetic.md", importedAt: "2026-11-01T00:00:00Z" }) }) },
+		{ name: "render settings", fallback: true, prepare: () => ({ file: config.renderSettingsFile(), save: () => writeRenderSettings({ linkDistance: 90 }) }) },
 		{ name: "graph format", fallback: true, prepare: () => {
-			fs.unlinkSync(config.GRAPH_FORMAT_FILE);
-			return { file: config.GRAPH_FORMAT_FILE, save: ensureGraphFormat };
+			fs.unlinkSync(config.graphFormatFile());
+			return { file: config.graphFormatFile(), save: ensureGraphFormat };
 		} },
-		{ name: "prompt override", fallback: true, prepare: () => ({ file: path.join(config.PROMPTS_OVERRIDE_DIR, "system-prompt.md"), save: () => promptOverrides.writeOverride("system-prompt.md", "compatible prompt") }) },
+		{ name: "prompt override", fallback: true, prepare: () => ({ file: path.join(config.promptsOverrideDir(), "system-prompt.md"), save: () => promptOverrides.writeOverride("system-prompt.md", "compatible prompt") }) },
 		{ name: "auth", fallback: false, prepare: () => ({ file: config.AUTH_FILE, save: () => authStore.setAuthVar("KEEP", "must not land") }) },
-		{ name: "source deletion", fallback: false, prepare: () => ({ file: config.SOURCES_FILE, save: () => graphStore.deleteSources(new Set(["src_policy"])) }) },
+		{ name: "source deletion", fallback: false, prepare: () => ({ file: config.sourcesFile(), save: () => graphStore.deleteSources(new Set(["src_policy"])) }) },
 		{ name: "ledger rewrite", fallback: false, prepare: () => ({ file: config.LEDGER_FILES.chains, save: () => graphStore.rewriteLedgers({ chains: [] }) }) },
-		{ name: "positions", fallback: false, prepare: () => ({ file: config.POSITIONS_FILE, save: () => graphStore.writePositions({ policy: { x: 3, y: 4 } }) }) },
-		{ name: "source organization", fallback: false, prepare: () => ({ file: config.SOURCE_ORGANIZATION_FILE, save: () => sourceOrganizationStore.write({ version: 1, folders: [], placements: {} }) }) },
+		{ name: "positions", fallback: false, prepare: () => ({ file: config.positionsFile(), save: () => graphStore.writePositions({ policy: { x: 3, y: 4 } }) }) },
+		{ name: "source organization", fallback: false, prepare: () => ({ file: config.sourceOrganizationFile(), save: () => sourceOrganizationStore.write({ version: 1, folders: [], placements: {} }) }) },
 	];
 	for (const { name, fallback, prepare } of cases) {
 		it(`${name}: ${fallback ? "retains" : "does not acquire"} in-place fallback`, (t) => {

@@ -19,16 +19,16 @@ for (const directory of [a, b, data]) await fs.mkdir(directory, { recursive: tru
 await fs.writeFile(auth, "{}\n");
 await fs.writeFile(path.join(a, "notes.md"), "synthetic study\n");
 await fs.writeFile(path.join(b, "notes.md"), "synthetic other\n");
-const { SETTINGS_FILE } = await import("../config.ts");
+const { settingsFile } = await import("../config.ts");
 const { readFileAccessSettings, readSettings, writeSettings } = await import("../src/store/settings.ts");
 const { fileAccessPolicy, fileAccessConfigurationError } = await import("../src/server/file-access.ts");
 const { setFileAccessPolicy } = await import("../src/agent/tools/file-access.ts");
 const { resolveSourcePath } = await import("../src/agent/tools/fs-shared.ts");
 const { GET } = await import("../app/api/settings/route.ts");
 const { PUT } = await import("../app/api/settings/[section]/route.ts");
-const stored = async (value: unknown) => fs.writeFile(SETTINGS_FILE, JSON.stringify(value));
+const stored = async (value: unknown) => fs.writeFile(settingsFile(), JSON.stringify(value));
 const put = (section: string, value: unknown) => PUT(new Request(`http://localhost/api/settings/${section}`, { method: "PUT", body: JSON.stringify(value), headers: { "Content-Type": "application/json" } }), { params: Promise.resolve({ section }) });
-beforeEach(async () => { await fs.rm(SETTINGS_FILE, { recursive: true, force: true }); setFileAccessPolicy(fileAccessPolicy); });
+beforeEach(async () => { await fs.rm(settingsFile(), { recursive: true, force: true }); setFileAccessPolicy(fileAccessPolicy); });
 after(async () => {
 	setFileAccessPolicy(() => ({ restricted: false, folders: [] }));
 	for (const [key, value] of Object.entries(prior)) { if (value === undefined) delete process.env[key]; else process.env[key] = value; }
@@ -68,7 +68,7 @@ describe("strict persisted file-access policy", () => {
 			assert.equal(readFileAccessSettings().ok, false);
 			assert.throws(() => resolveSourcePath(path.join(a, "notes.md")), blocked);
 		}
-		await fs.writeFile(SETTINGS_FILE, '{"SYNTHETIC_PRIVATE_PAYLOAD":');
+		await fs.writeFile(settingsFile(), '{"SYNTHETIC_PRIVATE_PAYLOAD":');
 		const response = await GET();
 		const body = await response.json();
 		assert.equal(body.settings, null);
@@ -79,7 +79,7 @@ describe("strict persisted file-access policy", () => {
 		await stored({ version: 1 });
 		const original = fsSync.readFileSync;
 		t.mock.method(fsSync, "readFileSync", (...args: unknown[]) => {
-			if (args[0] === SETTINGS_FILE) throw Object.assign(new Error("synthetic unreadable settings"), { code: "EACCES" });
+			if (args[0] === settingsFile()) throw Object.assign(new Error("synthetic unreadable settings"), { code: "EACCES" });
 			return Reflect.apply(original, fsSync, args);
 		});
 		assert.equal(readSettings(), null);
@@ -87,12 +87,12 @@ describe("strict persisted file-access policy", () => {
 		assert.throws(() => resolveSourcePath(path.join(a, "notes.md")), blocked);
 	});
 	it("directories, dangling settings symlinks and dangling data-directory symlinks are not first boot", async () => {
-		await fs.mkdir(SETTINGS_FILE);
+		await fs.mkdir(settingsFile());
 		assert.equal(readFileAccessSettings().ok, false);
-		await fs.rmdir(SETTINGS_FILE);
-		await fs.symlink(path.join(root, "missing-settings.json"), SETTINGS_FILE, "file");
+		await fs.rmdir(settingsFile());
+		await fs.symlink(path.join(root, "missing-settings.json"), settingsFile(), "file");
 		assert.equal(readFileAccessSettings().ok, false);
-		await fs.unlink(SETTINGS_FILE);
+		await fs.unlink(settingsFile());
 		await fs.rmdir(data);
 		await fs.symlink(path.join(root, "missing-data"), data, process.platform === "win32" ? "junction" : "dir");
 		try { assert.equal(readFileAccessSettings().ok, false); }
@@ -113,10 +113,10 @@ describe("settings HTTP and safe repair", () => {
 	});
 	it("invalid writes return 400 without altering a valid restricted record", async () => {
 		await stored({ version: 1, agent: { fileAccess: { restricted: true, folders: [a] } } });
-		const before = await fs.readFile(SETTINGS_FILE, "utf8");
+		const before = await fs.readFile(settingsFile(), "utf8");
 		for (const fileAccess of [{ restricted: "true", folders: [b] }, { restricted: true, folders: ["relative"] }, { restricted: false, folders: [a, 2] }, []]) {
 			assert.equal((await put("agent", { fileAccess })).status, 400);
-			assert.equal(await fs.readFile(SETTINGS_FILE, "utf8"), before);
+			assert.equal(await fs.readFile(settingsFile(), "utf8"), before);
 		}
 		assert.throws(() => resolveSourcePath(path.join(b, "notes.md")), /allowed folders/);
 	});
@@ -126,7 +126,7 @@ describe("settings HTTP and safe repair", () => {
 		assert.deepEqual(readSettings()?.agent?.fileAccess, { restricted: true, folders: [] });
 		assert.deepEqual(readSettings()?.agent?.tools, { pdf: false });
 		assert.throws(() => resolveSourcePath(path.join(a, "notes.md")), /allowed folders/);
-		await fs.writeFile(SETTINGS_FILE, "broken JSON");
+		await fs.writeFile(settingsFile(), "broken JSON");
 		const response = await put("appearance", { mode: "dark" });
 		assert.equal(response.status, 200);
 		assert.deepEqual((await response.json()).settings.agent.fileAccess, { restricted: true, folders: [] });
@@ -134,7 +134,7 @@ describe("settings HTTP and safe repair", () => {
 		assert.throws(() => resolveSourcePath(path.join(a, "notes.md")), /allowed folders/);
 	});
 	it("an explicit valid File access edit repairs corrupt settings and clears the UI diagnostic", async () => {
-		await fs.writeFile(SETTINGS_FILE, "broken JSON");
+		await fs.writeFile(settingsFile(), "broken JSON");
 		assert.match((await (await GET()).json()).fileAccessError, blocked);
 		const response = await put("agent", { fileAccess: { restricted: true, folders: [a] } });
 		assert.equal(response.status, 200);
@@ -142,7 +142,7 @@ describe("settings HTTP and safe repair", () => {
 		assert.equal((await (await GET()).json()).fileAccessError, undefined);
 		assert.equal(resolveSourcePath("Study/notes.md"), path.join(a, "notes.md"));
 		assert.throws(() => resolveSourcePath(path.join(b, "notes.md")), /allowed folders/);
-		await fs.writeFile(SETTINGS_FILE, "broken JSON again");
+		await fs.writeFile(settingsFile(), "broken JSON again");
 		writeSettings({ version: 1, agent: { fileAccess: { restricted: false, folders: [a] } } });
 		assert.equal(resolveSourcePath(path.join(b, "notes.md")), path.join(b, "notes.md"));
 	});

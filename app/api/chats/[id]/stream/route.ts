@@ -1,4 +1,4 @@
-import { withUser } from "@/src/server/auth/context.ts";
+import { withUser } from "@/src/server";
 /**
  * THE REATTACH STREAM (background-turn runner wave, owner ruling
  * 2026-09-25) — and, since CONNECTION DIET B (owner, 2026-10-10), THE

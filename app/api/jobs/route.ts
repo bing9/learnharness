@@ -1,4 +1,4 @@
-import { withUser } from "@/src/server/auth/context.ts";
+import { withUser } from "@/src/server";
 import { isTurnRunning, listJobs } from "@/src/server";
 
 export const dynamic = "force-dynamic";

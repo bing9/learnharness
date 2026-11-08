@@ -1,4 +1,4 @@
-import { withUser } from "@/src/server/auth/context.ts";
+import { withUser } from "@/src/server";
 /**
  * THE NOTIFICATION CHANNEL ROUTE (push-architecture slice 1, 2026-10-02):
  * one SSE connection per open window over the core event bus — the

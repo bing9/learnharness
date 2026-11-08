@@ -39,6 +39,37 @@ export { effectivePromptSegments, allSegmentPaths, readPromptOverride } from "..
 export * from "./keys.ts";
 export * from "./search.ts";
 export { authStore } from "../store/auth.ts";
+// The mobile-web accounts surface (PR #378): auth context, account
+// management, session cookies, and the per-account users store. Routes
+// come through this barrel — app/ never imports src/server/auth or
+// src/store directly (architecture: docs/architecture.md).
+export { requireAdmin, resolveScope, withUser, withUserScope } from "./auth/context.ts";
+export {
+	authenticate,
+	createFirstAdmin,
+	createUserByAdmin,
+	deleteUserAccount,
+	joinWithInvite,
+	loginBlocked,
+	publicAccount,
+	resetPassword,
+	setDisabled,
+	validateCredentials,
+} from "./auth/accounts.ts";
+export { jsonError, readJson, signedInResponse } from "./auth/http.ts";
+export { clearSessionCookie, isSecureRequest } from "./auth/session.ts";
+export { MIN_PASSWORD_LENGTH } from "./auth/password.ts";
+export {
+	adminCount,
+	countUsers,
+	createInvite,
+	getUserById,
+	listAccounts,
+	listInvites,
+	pendingInvite,
+	updateAccount,
+} from "../store/users.ts";
+export { currentScope } from "./scope.ts";
 export * from "./settings-body.ts";
 export { fileAccessConfigurationError } from "./file-access.ts";
 export * from "./turn-liveness.ts";
