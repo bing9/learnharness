@@ -23,6 +23,17 @@
  * log tail for diagnosis. The child is ALWAYS killed before exit — a
  * leaked server holds its port against the next run (learned the hard
  * way, same day).
+ *
+ * FIRST-RUN CLAIM (mobile-web, 2026-11-09): the throwaway data dir has no
+ * accounts, so the auth gate (proxy.ts) redirects every page to /setup
+ * (307) and every non-auth API to 503 until the first admin exists. A bare
+ * GET / → 200 expectation therefore fails on a fresh server by design —
+ * CI run 42480799625 failed exactly this way ("last status: 307"). The
+ * smoke claims the first-run admin itself (POST /api/auth/setup with a
+ * throwaway account, then re-polls GET / with the session cookie), so it
+ * still proves the packaged server serves the real app — a 307 alone
+ * would only prove the redirect works. The claim account lives only in
+ * the throwaway data dir, which is deleted on exit.
  */
 import { spawn } from "node:child_process";
 import { probeEnv, verifyDemoRuntime } from "./smoke-demo-runtime.mjs";
@@ -63,19 +74,81 @@ function freePort() {
 	});
 }
 
-/** One GET; resolves the status code (0 = connection refused/failed). */
-function get(url) {
+/** One request; resolves { status, setCookie, body } (status 0 = connection refused/failed). */
+function request(method, url, { body, cookie } = {}) {
 	return new Promise((resolve) => {
-		const req = http.get(url, (res) => {
-			res.resume();
-			resolve(res.statusCode ?? 0);
-		});
-		req.on("error", () => resolve(0));
+		const payload = body === undefined ? null : JSON.stringify(body);
+		const req = http.request(
+			url,
+			{
+				method,
+				headers: {
+					...(payload === null ? {} : { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(payload) }),
+					...(cookie ? { Cookie: cookie } : {}),
+				},
+			},
+			(res) => {
+				let text = "";
+				res.on("data", (chunk) => {
+					text += chunk;
+				});
+				res.on("end", () =>
+					resolve({ status: res.statusCode ?? 0, setCookie: res.headers["set-cookie"] ?? [], body: text }),
+				);
+			},
+		);
+		req.on("error", () => resolve({ status: 0, setCookie: [], body: "" }));
 		req.setTimeout(5000, () => {
 			req.destroy();
-			resolve(0);
+			resolve({ status: 0, setCookie: [], body: "" });
 		});
+		if (payload !== null) req.write(payload);
+		req.end();
 	});
+}
+
+/** One GET; resolves the status code (0 = connection refused/failed). */
+async function get(url, cookie) {
+	return (await request("GET", url, { cookie })).status;
+}
+
+/** The throwaway first-run admin (MIN_PASSWORD_LENGTH is 10; see src/server/auth/password.ts). */
+const SMOKE_ADMIN = { name: "Smoke Test", email: "smoke@test.local", password: "smoke-test-password" };
+
+/** Pull the `lh_session=<token>` cookie out of Set-Cookie headers (session.ts). */
+function sessionCookieFrom(setCookie) {
+	for (const header of setCookie) {
+		const first = header.split(";")[0]?.trim() ?? "";
+		if (first.startsWith(`${"lh_session"}=`) && first.length > "lh_session=".length) return first;
+	}
+	return null;
+}
+
+/**
+ * Claim the first-run admin on a fresh server and return its session cookie.
+ * POST /api/auth/setup is public only while no account exists (409 after
+ * that); a 409 here means the data dir was already initialized, so fall back
+ * to signing in with the same throwaway credentials.
+ */
+async function claimThrowawayAdmin(url) {
+	const setup = await request("POST", `${url}/api/auth/setup`, { body: SMOKE_ADMIN });
+	if (setup.status === 200) {
+		const cookie = sessionCookieFrom(setup.setCookie);
+		if (!cookie) throw new Error("POST /api/auth/setup → 200 but set no session cookie");
+		return cookie;
+	}
+	if (setup.status === 409) {
+		const login = await request("POST", `${url}/api/auth/login`, {
+			body: { email: SMOKE_ADMIN.email, password: SMOKE_ADMIN.password },
+		});
+		if (login.status === 200) {
+			const cookie = sessionCookieFrom(login.setCookie);
+			if (!cookie) throw new Error("POST /api/auth/login → 200 but set no session cookie");
+			return cookie;
+		}
+		throw new Error(`server already initialized and throwaway login failed (${login.status})`);
+	}
+	throw new Error(`POST /api/auth/setup → ${setup.status} (expected 200): ${setup.body.slice(0, 200)}`);
 }
 
 async function main() {
@@ -151,21 +224,40 @@ async function main() {
 
 	let failed = null;
 	try {
-		// 1) Boot: poll GET / until 200 (or timeout / early exit).
+		// 1) Boot: poll GET / until the server answers at all (or timeout / early exit).
+		// A 307 is an answer, not a failure: on a fresh data dir the auth gate
+		// redirects / → /setup until the first admin exists (see the header
+		// comment). Claim it below, then re-poll for a real 200.
 		let boot = 0;
 		const deadline = Date.now() + BOOT_TIMEOUT_MS;
 		while (Date.now() < deadline) {
 			if (exited) throw new Error(`server exited before answering on ${url}`);
 			boot = await get(url);
-			if (boot === 200) break;
+			if (boot === 200 || boot === 307) break;
 			await new Promise((r) => setTimeout(r, POLL_MS));
 		}
-		if (boot !== 200) throw new Error(`server never answered 200 on ${url} (last status: ${boot})`);
+		if (boot !== 200 && boot !== 307)
+			throw new Error(`server never answered on ${url} (last status: ${boot})`);
+
+		// 1b) First-run claim: a fresh server answers 307 until an admin exists.
+		let cookie;
+		if (boot === 307) {
+			cookie = await claimThrowawayAdmin(url);
+			console.log("[smoke-server] first-run claim ok: throwaway admin created, session cookie captured");
+			const claimDeadline = Date.now() + BOOT_TIMEOUT_MS;
+			while (Date.now() < claimDeadline) {
+				if (exited) throw new Error(`server exited before answering on ${url}`);
+				boot = await get(url, cookie);
+				if (boot === 200) break;
+				await new Promise((r) => setTimeout(r, POLL_MS));
+			}
+			if (boot !== 200) throw new Error(`server never answered 200 on ${url} after first-run claim (last status: ${boot})`);
+		}
 		console.log(`[smoke-server] boot ok: GET / → 200 (${url})`);
 
-		// 2) API surface: every probe must be 200.
+		// 2) API surface: every probe must be 200 (signed in when a claim happened).
 		for (const route of PROBES) {
-			const status = await get(url + route);
+			const status = await get(url + route, cookie);
 			if (status !== 200) throw new Error(`GET ${route} → ${status} (expected 200)`);
 			console.log(`[smoke-server] GET ${route} → 200`);
 		}
