@@ -107,7 +107,7 @@ export type LedgerFiles = {
 export const LEDGER_FILES: LedgerFiles = new Proxy({} as LedgerFiles, {
 	get(_target, property): string | undefined {
 		if (typeof property !== "string") return undefined;
-		return path.join(PATHS.graph, `${property}.jsonl`);
+		return path.join(/* turbopackIgnore: true */ PATHS.graph, `${property}.jsonl`);
 	},
 });
 
@@ -206,15 +206,15 @@ export const BASE_DATA = BASE_DATA_ROOT;
  * account-scoped: it is what tells the server WHICH account a session
  * belongs to. Mode 0600 (it holds password hashes and invite codes).
  */
-export const USERS_FILE = path.join(BASE_DATA_ROOT, "users.json");
+export const USERS_FILE = path.join(/* turbopackIgnore: true */ BASE_DATA_ROOT, "users.json");
 
 /** HMAC secret for session cookies (0600, generated on first use). */
-export const SESSION_KEY_FILE = path.join(BASE_DATA_ROOT, "session.key");
+export const SESSION_KEY_FILE = path.join(/* turbopackIgnore: true */ BASE_DATA_ROOT, "session.key");
 
 /** `<base>/users/<id>/` — the account's mutable-record root. */
 export function userDataRoot(userId: string): string {
 	if (!/^[A-Za-z0-9_-]+$/.test(userId)) throw new Error(`Invalid user id: ${userId}`);
-	return path.join(BASE_DATA_ROOT, "users", userId);
+	return path.join(/* turbopackIgnore: true */ BASE_DATA_ROOT, "users", userId);
 }
 
 /**
