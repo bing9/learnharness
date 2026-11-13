@@ -157,7 +157,7 @@ it("document route authenticates ALL methods before params, transport/getHost, o
 			assert.equal(response.status, 403, method);
 			assert.equal(response.headers.get("Cache-Control"), "no-store", method);
 			assert.deepEqual(await response.json(), forbidden, method);
-			const proxyRefusal = proxy(new NextRequest(new URL("/api/settings", origin), { method, headers }));
+			const proxyRefusal = await proxy(new NextRequest(new URL("/api/settings", origin), { method, headers }));
 			assert.equal(response.status, proxyRefusal.status, `${method}: same existing Proxy policy`);
 			assert.deepEqual(await proxyRefusal.json(), forbidden, method);
 			assert.equal(paramsAccesses, 0, method);

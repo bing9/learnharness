@@ -237,7 +237,8 @@ describe("side instructions", () => {
 		assert.doesNotMatch(prompt, /probe_done|plan_init/, "no teaching base or tool doctrine");
 	});
 	it("keeps side brevity last while still honoring enabled shared overrides", async () => {
-		const { PROMPTS_OVERRIDE_DIR } = await import("../config.ts");
+		const { promptsOverrideDir } = await import("../config.ts");
+		const PROMPTS_OVERRIDE_DIR = promptsOverrideDir();
 		assert.ok(PROMPTS_OVERRIDE_DIR.startsWith(TMP_DATA + path.sep));
 		const file = path.join(PROMPTS_OVERRIDE_DIR, "shared", "10-voice.md");
 		fs.mkdirSync(path.dirname(file), { recursive: true });

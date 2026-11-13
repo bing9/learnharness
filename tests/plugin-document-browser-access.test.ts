@@ -28,7 +28,7 @@ it("streamed document route shares browser policy before params, plugin work or 
 				Object.defineProperty(request, "body", { get() { bodyAccesses++; throw new Error("body accessed before policy"); } });
 				const context = { get params(): Promise<{ id: string }> { paramsAccesses++; throw new Error("params accessed before policy"); } };
 				const response = method === "POST" ? await route.POST(request, context) : await route[method](request);
-				const control = proxy(new NextRequest(url, { method, headers }));
+				const control = await proxy(new NextRequest(url, { method, headers }));
 				assert.equal(response.status, 403, `${method}: ${host} ${origin}`);
 				assert.equal(response.headers.get("cache-control"), "no-store");
 				assert.deepEqual(await response.json(), await control.json());

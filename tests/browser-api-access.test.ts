@@ -12,20 +12,24 @@ import { browserAPIRefusal, browserHostAllowed, browserOnlyMode } from "../src/s
 
 const secret = "a".repeat(64);
 
-function withEnv<T>(values: Record<string, string | undefined>, run: () => T): T {
+function withEnv<T>(values: Record<string, string | undefined>, run: () => T | Promise<T>): T | Promise<T> {
 	const saved = Object.fromEntries(Object.keys(values).map((key) => [key, process.env[key]]));
 	for (const [key, value] of Object.entries(values)) {
 		if (value === undefined) delete process.env[key];
 		else process.env[key] = value;
 	}
-	try {
-		return run();
-	} finally {
+	const restore = () => {
 		for (const [key, value] of Object.entries(saved)) {
 			if (value === undefined) delete process.env[key];
 			else process.env[key] = value;
 		}
-	}
+	};
+	const result = run();
+	// The fork's proxy is async (PR #378 auth gate); env must stay set until
+	// the returned promise settles, not just until run() returns.
+	if (result instanceof Promise) return result.finally(restore) as T;
+	restore();
+	return result;
 }
 
 const browserEnv = { LH_DESKTOP_SERVER: undefined, LH_DESKTOP_API_SECRET: undefined, LH_ALLOWED_HOSTS: undefined };
@@ -99,21 +103,21 @@ describe("proxy", () => {
 		assert.equal(browserOnlyMode({ LH_DESKTOP_API_SECRET: secret }), false);
 	});
 
-	it("blocks cross-site writes and rebinding hosts in browser-only mode", () => {
-		withEnv(browserEnv, () => {
-			const csrf = proxy(new NextRequest("http://localhost:3000/api/chats", { method: "POST", headers: { origin: "https://evil.example", "sec-fetch-site": "cross-site", "content-type": "text/plain" } }));
+	it("blocks cross-site writes and rebinding hosts in browser-only mode", async () => {
+		await withEnv(browserEnv, async () => {
+			const csrf = await proxy(new NextRequest("http://localhost:3000/api/chats", { method: "POST", headers: { origin: "https://evil.example", "sec-fetch-site": "cross-site", "content-type": "text/plain" } }));
 			assert.equal(csrf.status, 403);
-			assert.equal(proxy(new NextRequest("http://rebind.attacker.example:3000/api/settings")).status, 403);
-			const ok = proxy(new NextRequest("http://localhost:3000/api/chats", { method: "POST", headers: { origin: "http://localhost:3000", "sec-fetch-site": "same-origin" } }));
+			assert.equal((await proxy(new NextRequest("http://rebind.attacker.example:3000/api/settings"))).status, 403);
+			const ok = await proxy(new NextRequest("http://localhost:3000/api/chats", { method: "POST", headers: { origin: "http://localhost:3000", "sec-fetch-site": "same-origin" } }));
 			assert.equal(ok.headers.get("x-middleware-next"), "1");
 		});
 	});
 
-	it("keeps the desktop path unchanged: the secret decides, not Host or Origin", () => {
-		withEnv({ LH_DESKTOP_SERVER: "1", LH_DESKTOP_API_SECRET: secret, LH_ALLOWED_HOSTS: undefined }, () => {
-			const viaGateway = proxy(new NextRequest("http://mymac.local:4747/api/chats", { method: "POST", headers: { "x-learnharness-desktop": secret } }));
+	it("keeps the desktop path unchanged: the secret decides, not Host or Origin", async () => {
+		await withEnv({ LH_DESKTOP_SERVER: "1", LH_DESKTOP_API_SECRET: secret, LH_ALLOWED_HOSTS: undefined }, async () => {
+			const viaGateway = await proxy(new NextRequest("http://mymac.local:4747/api/chats", { method: "POST", headers: { "x-learnharness-desktop": secret } }));
 			assert.equal(viaGateway.headers.get("x-middleware-next"), "1");
-			assert.equal(proxy(new NextRequest("http://127.0.0.1:3000/api/chats", { method: "POST" })).status, 403);
+			assert.equal((await proxy(new NextRequest("http://127.0.0.1:3000/api/chats", { method: "POST" }))).status, 403);
 		});
 	});
 });
