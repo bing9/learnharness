@@ -1,7 +1,7 @@
 import { withUser } from "@/src/server";
 /**
  * POST /api/activity/abort — the dock's END/ABORT control, uniform across
- * process kinds (user-decided contract): body {kind: "job"|"extraction"|"turn", id}
+ * process kinds (user-decided contract): body {kind: "job"|"plugin-worker"|"extraction"|"turn", id}
  * where id is the jobId for sub-agent jobs, the chatId for extraction runs
  * (the pipeline registry is chat-keyed), and the chatId for turns
  * (background-turn wave, 2026-09-25: a running turn is a background
@@ -18,7 +18,7 @@ import { withUser } from "@/src/server";
  * Extraction abort is idempotent by design (aborting with nothing in
  * flight is success — the blob is gone either way) -> 200.
  */
-import { abortExtraction, abortJob, abortTurn } from "@/src/server";
+import { abortExtraction, abortJob, abortPluginWorkerActivity, abortTurn } from "@/src/server";
 
 export const POST = withUser(async function POST(req: Request) {
 	let body: unknown;
@@ -28,8 +28,8 @@ export const POST = withUser(async function POST(req: Request) {
 		return Response.json({ error: "Invalid JSON body" }, { status: 400 });
 	}
 	const { kind, id } = (body ?? {}) as { kind?: string; id?: string };
-	if ((kind !== "job" && kind !== "extraction" && kind !== "turn") || typeof id !== "string" || id === "") {
-		return Response.json({ error: 'Body must be {kind: "job"|"extraction"|"turn", id: string}' }, { status: 400 });
+	if ((kind !== "job" && kind !== "plugin-worker" && kind !== "extraction" && kind !== "turn") || typeof id !== "string" || id === "") {
+		return Response.json({ error: 'Body must be {kind: "job"|"plugin-worker"|"extraction"|"turn", id: string}' }, { status: 400 });
 	}
 	if (!/^[A-Za-z0-9:_-]+$/.test(id)) {
 		return Response.json({ error: "Invalid id" }, { status: 400 });
@@ -41,6 +41,10 @@ export const POST = withUser(async function POST(req: Request) {
 			const status = outcome.reason === "not_found" ? 404 : 409;
 			return Response.json({ ok: false, reason: outcome.reason }, { status });
 		}
+		return Response.json({ ok: true });
+	}
+	if (kind === "plugin-worker") {
+		if (!abortPluginWorkerActivity(id)) return Response.json({ ok: false, reason: "not_found" }, { status: 404 });
 		return Response.json({ ok: true });
 	}
 	if (kind === "turn") {

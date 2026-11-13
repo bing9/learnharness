@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { JetBrains_Mono, Source_Sans_3 } from "next/font/google";
+import { connection } from "next/server";
 import "katex/dist/katex.min.css";
 import "./globals.css";
+import { readThemeBoot } from "@/src/server";
 
 // Chrome = JetBrains Mono, teaching prose = Source Sans 3, titles = CMU
 // Serif (the bundled lh-cmu @font-face in globals.css — no CDN).
@@ -41,9 +43,22 @@ export const viewport: Viewport = {
 	colorScheme: "dark",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+	// The theme is server-rendered — its class AND its color variables —
+	// so no first frame ever shows the wrong theme. connection(): the
+	// record and the theme files are per-machine disk state — without it a
+	// prerendered route (settings) would bake the BUILD machine's record.
+	// Providers live in the (app)/(auth) route-group layouts, not here:
+	// the root stays bare so auth pages never mount the app shell.
+	await connection();
+	const { theme, vars } = readThemeBoot();
 	return (
-		<html lang="en" className={`dark ${ui.variable} ${prose.variable}`}>
+		<html
+			lang="en"
+			className={`${theme.mode} ${ui.variable} ${prose.variable}`}
+			style={vars as React.CSSProperties}
+			suppressHydrationWarning
+		>
 			<body className="min-h-dvh antialiased">{children}</body>
 		</html>
 	);
