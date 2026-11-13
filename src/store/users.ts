@@ -14,7 +14,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { randomBytes } from "node:crypto";
 import { USERS_FILE } from "../../config.ts";
-import type { UserRole } from "../server/scope.ts";
+import type { UserRole } from "../core/scope.ts";
 
 export type AccountRecord = {
 	id: string;

@@ -73,7 +73,7 @@ export {
 	pendingInvite,
 	updateAccount,
 } from "../store/users.ts";
-export { currentScope } from "./scope.ts";
+export { currentScope } from "../core/scope.ts";
 export * from "./settings-body.ts";
 export { fileAccessConfigurationError } from "./file-access.ts";
 export * from "./turn-liveness.ts";

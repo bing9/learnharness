@@ -1,6 +1,6 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { scopedDataRoot } from "./src/server/scope.ts";
+import { scopedDataRoot } from "./src/core/scope.ts";
 
 /** Repository root (this file is at <root>/config.ts). */
 export const ROOT = path.dirname(fileURLToPath(import.meta.url));
@@ -16,7 +16,7 @@ export const ROOT = path.dirname(fileURLToPath(import.meta.url));
  * on purpose: they ship inside the app bundle by design.
  *
  * MULTI-USER (mobile-web, 2026-10-29): the base root below is now only the
- * FALLBACK. Inside a signed-in request, src/server/scope.ts supplies the
+ * FALLBACK. Inside a signed-in request, src/core/scope.ts supplies the
  * account's own root (`<base>/users/<id>/`), so chats, ledgers, jobs and
  * settings resolve per user. Provider keys (AUTH_FILE) stay machine-global
  * by owner decision.

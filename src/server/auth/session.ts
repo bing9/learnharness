@@ -16,7 +16,7 @@ import path from "node:path";
 import { randomBytes } from "node:crypto";
 import { SignJWT, jwtVerify } from "jose";
 import { SESSION_KEY_FILE } from "../../../config.ts";
-import type { UserRole } from "../scope.ts";
+import type { UserRole } from "../../core/scope.ts";
 
 export const SESSION_COOKIE = "lh_session";
 const ISSUER = "learnharness";

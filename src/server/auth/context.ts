@@ -5,7 +5,7 @@
  * it resolves the session cookie (or the desktop shell's capability header),
  * enters the account's data scope, and only then runs the handler. Everything
  * the handler spawns — services, turn runs, sub-agent jobs — inherits the
- * scope through AsyncLocalStorage (src/server/scope.ts).
+ * scope through AsyncLocalStorage (src/core/scope.ts).
  *
  * Failure is loud and early: no scope ⇒ 401, never a silent write into the
  * shared base data root.
@@ -15,7 +15,7 @@ import { cookies } from "next/headers";
 import { desktopAPIAuthorized } from "../desktop-access.ts";
 import { ownerAccount, getUserById } from "../../store/users.ts";
 import { BASE_DATA, userDataRoot } from "../../../config.ts";
-import { currentScope, runInScope, type DataScope, type UserRole } from "../scope.ts";
+import { currentScope, runInScope, type DataScope, type UserRole } from "../../core/scope.ts";
 import { readCookie, SESSION_COOKIE, verifySession } from "./session.ts";
 
 export type AuthUser = { id: string; name: string; email: string; role: UserRole };

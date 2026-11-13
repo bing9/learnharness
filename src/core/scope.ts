@@ -16,6 +16,11 @@
  *
  * This module imports nothing from the app on purpose: `config.ts` imports
  * IT, so a cycle here would poison every module that touches a path.
+ *
+ * It lives in src/core (not src/server) so the portable plugin API tree
+ * stays server-free: config.ts imports it, the plugin-types build emits
+ * config.d.ts, and the plugin-types tests assert no src/server in the
+ * emitted tree.
  */
 
 import { AsyncLocalStorage } from "node:async_hooks";
