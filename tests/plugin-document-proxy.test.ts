@@ -1,14 +1,32 @@
 import assert from "node:assert/strict";
+import * as fs from "node:fs";
 import type { IncomingMessage } from "node:http";
+import * as os from "node:os";
+import * as path from "node:path";
 import { Readable } from "node:stream";
-import { it } from "node:test";
+import { after, it } from "node:test";
 import { getCloneableBody } from "next/dist/server/body-streams.js";
 import { NextRequest } from "next/server";
 // Installed Next retains this name for its Proxy matcher test helper.
 import { unstable_doesMiddlewareMatch as unstable_doesProxyMatch } from "next/experimental/testing/server";
-import { config, proxy } from "../proxy.ts";
-import { createPluginDocumentConverter, MAX_DOCUMENT_BODY_BYTES } from "../src/server/plugin-documents.ts";
-import { createPluginDocumentRoute, createPluginTransport } from "../src/server/plugin-transport.ts";
+
+// ── the seam, BEFORE any config-loading import ──────────────────────────────
+// The proxy reads the account registry (config.USERS_FILE) at import time.
+// Isolate the data root and create one account so the gate is initialized:
+// the proxy-control comparison in the auth test below then has a stable
+// answer (401) instead of depending on the repo's own data/ dir, which
+// other test files write users.json into.
+const TMP_DATA = fs.mkdtempSync(path.join(os.tmpdir(), "lh-plugin-document-proxy-"));
+process.env.LH_DATA_DIR = TMP_DATA;
+
+const { config, proxy } = await import("../proxy.ts");
+const { createPluginDocumentConverter, MAX_DOCUMENT_BODY_BYTES } = await import("../src/server/plugin-documents.ts");
+const { createPluginDocumentRoute, createPluginTransport } = await import("../src/server/plugin-transport.ts");
+const { createAccount } = await import("../src/store/users.ts");
+
+after(() => fs.rmSync(TMP_DATA, { recursive: true, force: true }));
+
+createAccount({ name: "Gate", email: "gate@example.com", passwordHash: "scrypt$fixture", role: "admin" });
 
 const origin = "http://localhost";
 const documentPath = "/api/plugins/document-one/documents/markdown";
@@ -39,8 +57,11 @@ it("Proxy retains API roots, siblings, endpoint lookalikes and all other API rou
 		"/api/plugins/document-one/other/documents/markdown", "/api/plugins/documents/markdown",
 		"/api/graph/import", "/api/events", "/api/chat", "/api/settings/models", "/api/chats/scratch/markdown",
 	]) assert.equal(proxyMatches(path), true, path);
+	// The fork's proxy gates pages too (setup/login redirects), so unlike
+	// upstream's API-only matcher these routes DO run the proxy. Only the
+	// streamed document endpoint is excluded.
 	for (const path of ["/", "/chat/new", "/apix", "/api-other/plugins/document-one/documents/markdown"]) {
-		assert.equal(proxyMatches(path), false, path);
+		assert.equal(proxyMatches(path), true, path);
 	}
 });
 
@@ -157,9 +178,15 @@ it("document route authenticates ALL methods before params, transport/getHost, o
 			assert.equal(response.status, 403, method);
 			assert.equal(response.headers.get("Cache-Control"), "no-store", method);
 			assert.deepEqual(await response.json(), forbidden, method);
+			// The route and the proxy refuse with different layers: the route
+			// enforces the desktop-secret policy (403), while the proxy's
+			// auth gate answers first for an unauthenticated request (401)
+			// and never reaches its refusal policy (composed check order:
+			// setup, then session, then refusal). Upstream compared them
+			// equal because its proxy WAS the refusal policy.
 			const proxyRefusal = await proxy(new NextRequest(new URL("/api/settings", origin), { method, headers }));
-			assert.equal(response.status, proxyRefusal.status, `${method}: same existing Proxy policy`);
-			assert.deepEqual(await proxyRefusal.json(), forbidden, method);
+			assert.equal(proxyRefusal.status, 401, `${method}: auth gate answers first`);
+			assert.deepEqual(await proxyRefusal.json(), { error: "unauthorized", message: "Sign in to continue." }, method);
 			assert.equal(paramsAccesses, 0, method);
 			upload.assertUntouched();
 		}

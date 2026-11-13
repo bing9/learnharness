@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { desktopAPIAuthorized } from "./src/server/desktop-access.ts";
+import { apiRequestRefusal, desktopAPIAuthorized } from "./src/server/desktop-access.ts";
 import { readCookie, SESSION_COOKIE, verifySession } from "./src/server/auth/session.ts";
 import { countUsers } from "./src/store/users.ts";
 
@@ -14,9 +14,26 @@ import { countUsers } from "./src/store/users.ts";
  *
  * API routes ALSO wrap their handlers in withUser() (defense in depth): this
  * gate decides UX, the handler decides data-scope.
+ *
+ * COMPOSED POLICY (fork + upstream v0.6.1, 2026-11-13): the gate above is
+ * the outer layer on every route the proxy runs on. Once it passes, API
+ * routes additionally enforce upstream's request policy
+ * (apiRequestRefusal: Host check against DNS rebinding + cross-site check
+ * on writes in browser-only mode; the desktop capability in desktop mode).
+ * Check order is setup redirect, then session, then refusal — anonymous
+ * requests never reach the refusal policy, they get the gate's 401/503.
+ * The streamed plugin-documents endpoint is exempt from the refusal check
+ * here: it bypasses proxy execution entirely via config.matcher (so Next
+ * never clones its upload body) and its handler enforces the same policy
+ * before touching params or body.
  */
 
 const PUBLIC_PAGES = new Set(["/login", "/setup", "/join"]);
+
+/** Exact streamed document endpoint, optional trailing slash. The matcher
+ * below excludes it from proxy execution; this keeps direct proxy() calls
+ * (and any future matcher drift) from applying the refusal check to it. */
+const DOCUMENT_ENDPOINT = /^\/api\/plugins\/[^/]+\/documents\/markdown\/?$/;
 
 async function hasSession(request: NextRequest): Promise<boolean> {
 	const token = readCookie(request.headers.get("cookie"), SESSION_COOKIE);
@@ -46,6 +63,15 @@ export async function proxy(request: NextRequest) {
 	const signedIn = desktop || (await hasSession(request));
 	if (signedIn) {
 		if (PUBLIC_PAGES.has(pathname)) return NextResponse.redirect(new URL("/", request.url));
+		if (isApi && !DOCUMENT_ENDPOINT.test(pathname)) {
+			const refusal = apiRequestRefusal(request);
+			if (refusal) {
+				return NextResponse.json(
+					{ error: refusal },
+					{ status: 403, headers: { "Cache-Control": "no-store" } },
+				);
+			}
+		}
 		return NextResponse.next();
 	}
 
@@ -68,5 +94,10 @@ export async function proxy(request: NextRequest) {
 export const config = {
 	// Static assets, icons and the manifest stay public — a login redirect on a
 	// stylesheet would leave the login page itself unstyled.
-	matcher: ["/((?!_next/static|_next/image|favicon.ico|icons/|manifest.webmanifest).*)"],
+	// The exact streamed plugin-documents endpoint is excluded (upstream
+	// v0.6.1): Next clones request bodies before proxy() runs, silently
+	// truncating large uploads, so the endpoint bypasses proxy execution and
+	// its handler enforces the request policy itself. Every other route —
+	// pages included, so the gate above covers them — still runs the proxy.
+	matcher: ["/((?!_next/static|_next/image|favicon.ico|icons/|manifest.webmanifest|api/plugins/[^/]+/documents/markdown/?$).*)"],
 };

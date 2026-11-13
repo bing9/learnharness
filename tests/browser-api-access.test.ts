@@ -4,11 +4,33 @@
  * and a cross-site check on writes. None of this is user authentication.
  */
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import { readFileSync } from "node:fs";
-import { describe, it } from "node:test";
+import * as os from "node:os";
+import * as path from "node:path";
+import { after, describe, it } from "node:test";
 import { NextRequest } from "next/server";
-import { proxy } from "../proxy.ts";
 import { browserAPIRefusal, browserHostAllowed, browserOnlyMode } from "../src/server/desktop-access.ts";
+
+// ── the seam, BEFORE any config-loading import ──────────────────────────────
+// The proxy reads the account registry (config.USERS_FILE) at import time, so
+// the data root must be isolated here: the repo's own data/ is shared with
+// other test files (desktop-api.test.ts writes users.json into it), and the
+// gate's answer for anonymous requests — 401 initialized vs 503 first-run —
+// depends on whether an account exists.
+const TMP_DATA = fs.mkdtempSync(path.join(os.tmpdir(), "lh-browser-api-access-"));
+process.env.LH_DATA_DIR = TMP_DATA;
+
+const { proxy } = await import("../proxy.ts");
+const { SESSION_COOKIE, signSession } = await import("../src/server/auth/session.ts");
+const { createAccount } = await import("../src/store/users.ts");
+
+after(() => fs.rmSync(TMP_DATA, { recursive: true, force: true }));
+
+// One account, so the gate is initialized; one signed session, so the tests
+// can exercise the refusal policy that runs after the session check.
+const account = createAccount({ name: "Gate", email: "gate@example.com", passwordHash: "scrypt$fixture", role: "admin" });
+const sessionCookie = `${SESSION_COOKIE}=${await signSession({ sub: account.id, email: account.email, role: account.role, ver: account.sessionVersion })}`;
 
 const secret = "a".repeat(64);
 
@@ -103,12 +125,28 @@ describe("proxy", () => {
 		assert.equal(browserOnlyMode({ LH_DESKTOP_API_SECRET: secret }), false);
 	});
 
-	it("blocks cross-site writes and rebinding hosts in browser-only mode", async () => {
+	it("anonymous API requests get the auth gate, never the refusal policy", async () => {
+		// Composed policy (fork + upstream v0.6.1): check order is setup
+		// redirect, then session, then refusal. Anonymous requests stop at
+		// the gate with 401 whatever their Host or Origin — the refusal
+		// policy only runs for signed-in requests (next test). Upstream
+		// answered these with 403 from the refusal policy; the fork's gate
+		// is stricter and runs first.
 		await withEnv(browserEnv, async () => {
 			const csrf = await proxy(new NextRequest("http://localhost:3000/api/chats", { method: "POST", headers: { origin: "https://evil.example", "sec-fetch-site": "cross-site", "content-type": "text/plain" } }));
-			assert.equal(csrf.status, 403);
-			assert.equal((await proxy(new NextRequest("http://rebind.attacker.example:3000/api/settings"))).status, 403);
+			assert.equal(csrf.status, 401);
+			assert.equal((await proxy(new NextRequest("http://rebind.attacker.example:3000/api/settings"))).status, 401);
 			const ok = await proxy(new NextRequest("http://localhost:3000/api/chats", { method: "POST", headers: { origin: "http://localhost:3000", "sec-fetch-site": "same-origin" } }));
+			assert.equal(ok.status, 401);
+		});
+	});
+
+	it("signed-in requests get the browser refusal policy after the session check", async () => {
+		await withEnv(browserEnv, async () => {
+			const csrf = await proxy(new NextRequest("http://localhost:3000/api/chats", { method: "POST", headers: { origin: "https://evil.example", "sec-fetch-site": "cross-site", "content-type": "text/plain", cookie: sessionCookie } }));
+			assert.equal(csrf.status, 403);
+			assert.equal((await proxy(new NextRequest("http://rebind.attacker.example:3000/api/settings", { headers: { cookie: sessionCookie } }))).status, 403);
+			const ok = await proxy(new NextRequest("http://localhost:3000/api/chats", { method: "POST", headers: { origin: "http://localhost:3000", "sec-fetch-site": "same-origin", cookie: sessionCookie } }));
 			assert.equal(ok.headers.get("x-middleware-next"), "1");
 		});
 	});
@@ -117,7 +155,10 @@ describe("proxy", () => {
 		await withEnv({ LH_DESKTOP_SERVER: "1", LH_DESKTOP_API_SECRET: secret, LH_ALLOWED_HOSTS: undefined }, async () => {
 			const viaGateway = await proxy(new NextRequest("http://mymac.local:4747/api/chats", { method: "POST", headers: { "x-learnharness-desktop": secret } }));
 			assert.equal(viaGateway.headers.get("x-middleware-next"), "1");
-			assert.equal((await proxy(new NextRequest("http://127.0.0.1:3000/api/chats", { method: "POST" }))).status, 403);
+			// No secret and no session: the auth gate answers 401 before the
+			// refusal policy is consulted (composed check order). Upstream
+			// answered 403 from its desktop-secret refusal.
+			assert.equal((await proxy(new NextRequest("http://127.0.0.1:3000/api/chats", { method: "POST" }))).status, 401);
 		});
 	});
 });
