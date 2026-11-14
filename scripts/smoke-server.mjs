@@ -285,8 +285,11 @@ registerHooks({resolve(specifier,context,next){ const result=next(specifier,cont
 			if (status !== 200) throw new Error(`GET ${route} → ${status} (expected 200)`);
 			console.log(`[smoke-server] GET ${route} → 200`);
 		}
-		await verifyCorePlugins({ root: ROOT, standalone, dataDirectory: dataDir, url });
-		await verifyPluginServer(url, home);
+		await verifyCorePlugins({ root: ROOT, standalone, dataDirectory: dataDir, url, cookie });
+		// verifyPluginServer takes its auth via headers: without the session
+		// cookie the fork's gate 401s its /api/plugins* calls (upstream has
+		// no gate, so it passes none — hence the bare call upstream).
+		await verifyPluginServer(url, home, cookie ? { Cookie: cookie } : {});
 		if (BROWSER_MODE) {
 			const { verifyPluginBrowser } = await import("./smoke-plugin-browser.mjs");
 			const evidenceDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "lh-plugin-browser-evidence-"));
