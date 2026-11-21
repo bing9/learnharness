@@ -19,7 +19,8 @@ import { InteractionLayersProvider } from "../components/interaction-layers.tsx"
 const TMP_DATA = fs.mkdtempSync(path.join(os.tmpdir(), "lh-themes-"));
 process.env.LH_DATA_DIR = TMP_DATA;
 
-const { THEMES_DIR } = await import("../config.ts");
+const { themesDir } = await import("../config.ts");
+const THEMES_DIR = themesDir();
 const { PUT: putSection } = await import("../app/api/settings/[section]/route.ts");
 const { GET: getThemes, POST: postTheme } = await import("../app/api/themes/route.ts");
 const { DELETE: deleteTheme } = await import("../app/api/themes/[id]/route.ts");

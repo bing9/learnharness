@@ -85,7 +85,11 @@ it("dedicated plugin settings pages cover schema/custom/empty/loading/error, dee
 		assert.ok(page()?.querySelector('[data-plugin-setting="validated"] [role="alert"]')?.textContent?.includes("Preference is invalid"));
 		await click('[data-plugin-setting="failing"] [role="switch"]');
 		assert.ok(page()?.querySelector('[data-plugin-setting="failing"] [role="alert"]')?.textContent?.includes("Plugin save failed"));
-		assert.deepEqual(coreRequests, ["/api/settings"], "schema changes do not write core settings");
+		// The fork's settings dialog also reads the signed-in account
+		// (/api/auth/me) so the admin-only accounts section can hide for
+		// non-admins; both fetches are reads and neither writes core
+		// settings. Compared as a set: the role fetch is not order-pinned.
+		assert.deepEqual([...coreRequests].sort(), ["/api/auth/me", "/api/settings"], "schema changes do not write core settings");
 		await act(async () => { rejectCore(new Error("Core settings unavailable")); });
 		assert.ok(page()?.textContent?.includes("Feature enabled"), "core fetch error does not gate plugin page");
 		await click('[data-testid="settings-nav-plugin:custom"]');

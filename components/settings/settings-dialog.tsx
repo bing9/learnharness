@@ -59,6 +59,8 @@ import { PluginSettingsPage } from "./plugin-settings-page.tsx";
 import { usePlugins } from "@/components/plugins";
 import { ChatGPTUIProvider } from "./chatgpt-connection.tsx";
 import { NativeSubscriptionUIProvider } from "./subscription-connections.tsx";
+import { AccountsSection } from "./accounts-section.tsx";
+import { useMe } from "@/components/auth/use-me";
 
 /** Owner (2026-09-20): hints earn their place — mechanics-explaining
  *  prose is out; only the keyboard note stays (storage location is a
@@ -70,6 +72,8 @@ const SECTIONS = [
 	{ id: "graph", label: "Graph", icon: WaypointsIcon },
 	{ id: "keyboard", label: "Keyboard", icon: KeyboardIcon, hint: "Stored on this device" },
 	{ id: "general", label: "General", icon: SettingsIcon },
+	// Accounts (mobile-web, 2026-10-29) — admin-only; filtered out below.
+	{ id: "accounts", label: "Accounts" },
 ] as const;
 type SectionId = (typeof SECTIONS)[number]["id"] | "plugins" | "core-plugins" | `plugin:${string}`;
 
@@ -194,6 +198,10 @@ export function SettingsDialogBody({
 	initialRow?: string | null;
 }) {
 	const { onAppearanceChange } = useAppearance();
+	// Accounts nav is admin-only: the section itself also refuses non-admins,
+	// but a nav item that always 403s is noise.
+	const { user } = useMe();
+	const sections = SECTIONS.filter((s) => s.id !== "accounts" || user?.role === "admin");
 	const inheritedWriteOrder = useContext(WriteOrderContext);
 	const standaloneWriteOrder = useRef(newWriteOrder());
 	const writeOrder = inheritedWriteOrder ?? standaloneWriteOrder;
@@ -257,7 +265,7 @@ export function SettingsDialogBody({
 	}, [missingPlugin, management]);
 	const selected = missingPlugin ? management : active;
 	const navSections: { id: SectionId; label: string; icon?: LucideIcon }[] = [
-		...SECTIONS,
+		...sections,
 		{ id: "core-plugins", label: "Core plugins", icon: PlugIcon },
 		{ id: "plugins", label: "Community plugins", icon: PuzzleIcon },
 		...enabledPlugins.map(plugin => ({ id: `plugin:${plugin.info.id}` as const, label: plugin.info.manifest?.name ?? plugin.info.id })),
@@ -389,7 +397,7 @@ export function SettingsDialogBody({
 			aria-modal="true"
 			aria-label="Settings"
 			data-testid="settings-dialog"
-			className="settings-dialog-pop flex h-[620px] max-h-[85vh] w-[920px] max-w-[90vw] flex-col overflow-hidden rounded-md border border-border bg-card shadow-xl"
+			className="settings-dialog-pop flex h-[620px] max-h-[85vh] w-[920px] max-w-[90vw] flex-col overflow-hidden rounded-md border border-border bg-card shadow-xl max-md:h-full max-md:max-h-full max-md:w-full max-md:max-w-none max-md:rounded-none max-md:border-0"
 			onClick={(e) => e.stopPropagation()}
 		>
 			{/* Header — the app's quiet CMU title language. */}
@@ -421,17 +429,17 @@ export function SettingsDialogBody({
 					</Hint>
 			</header>
 
-			<div className="flex min-h-0 flex-1">
+			<div className="flex min-h-0 flex-1 max-md:flex-col max-md:overflow-hidden">
 				{/* Left nav — mono labels and theme-inherited decorative icons,
 					    active = bg-accent. */}
 				<nav
 					aria-label="Settings sections"
 					data-testid="settings-nav"
-					className="flex min-h-0 w-48 shrink-0 flex-col gap-1 overflow-y-auto border-r border-border p-2"
+					className="flex min-h-0 w-48 shrink-0 flex-col gap-1 overflow-y-auto border-r border-border p-2 max-md:w-full max-md:flex-row max-md:overflow-x-auto max-md:border-r-0 max-md:border-b max-md:p-1.5"
 				>
 					{navSections.map((s, index) => (
 						<div key={s.id} className="shrink-0">
-							{index === SECTIONS.length && <hr className="my-2 border-border" />}
+							{index === sections.length && <hr className="my-2 border-border" />}
 							<button
 								type="button"
 								data-testid={`settings-nav-${s.id}`}
@@ -561,6 +569,7 @@ export function SettingsDialogBody({
 									<KeyboardSection />
 								</SettingsSection>
 							)}
+							{active === "accounts" && user?.role === "admin" && <AccountsSection />}
 						</div>
 					)}
 				</div>

@@ -1,3 +1,4 @@
+import { withUser } from "@/src/server";
 /**
  * THE SILENT DISMISSAL ROUTE (owner design 2026-10-03, "A2"): ESC-abort
  * from a pending question writes the dismissed toolResult to the record
@@ -23,7 +24,7 @@
 import { assertPluginQuestionInputAllowed, ChatInputError, dismissAppends, emit, parseDismissInput } from "@/src/core";
 import { abortTurn, getChat, isTurnRunning, parkDismissal, stores, preparePluginQuestionDismissal, reconcilePluginQuestionCompatibility } from "@/src/server";
 
-export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }): Promise<Response> {
+export const POST = withUser(async function POST(req: Request, ctx: { params: Promise<{ id: string }> }): Promise<Response> {
 	const { id } = await ctx.params;
 	await reconcilePluginQuestionCompatibility(stores.chatStore, id);
 	let chat = getChat(id);
@@ -79,4 +80,4 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 	stores.chatStore.saveMessages(id, [...chat.messages, ...appends]);
 	emit("record-changed", { chatId: id });
 	return Response.json({ ok: true });
-}
+});

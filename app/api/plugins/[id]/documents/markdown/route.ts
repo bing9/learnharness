@@ -1,11 +1,12 @@
-import { createPluginDocumentRoute, pluginTransport } from "@/src/server";
+import { createPluginDocumentRoute, pluginTransport, withOwnerAccount } from "@/src/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 // This exact route skips Proxy body cloning, NOT desktop authentication.
 const handlers = createPluginDocumentRoute(pluginTransport);
-export const POST = handlers.POST;
+// Accounts (fork, 2026-11-21): plugins are the owner account's (src/server/auth/owner-scope.ts).
+export const POST = withOwnerAccount(handlers.POST);
 export const OPTIONS = handlers.OPTIONS;
 export const GET = handlers.GET;
 export const HEAD = handlers.HEAD;
