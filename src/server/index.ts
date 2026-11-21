@@ -48,6 +48,7 @@ export { authStore } from "../store/auth.ts";
 // come through this barrel — app/ never imports src/server/auth or
 // src/store directly (architecture: docs/architecture.md).
 export { requireAdmin, resolveScope, withUser, withUserScope } from "./auth/context.ts";
+export { withOwnerAccount } from "./auth/owner-scope.ts";
 export {
 	authenticate,
 	createFirstAdmin,

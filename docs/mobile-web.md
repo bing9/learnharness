@@ -37,6 +37,15 @@ Decisions taken by the owner (2026-10-29):
 8. **Auth UI** — `/setup` (name, email, password ≥10), `/login`, `/join?code=…` (invitee sets
    name + password), sign-out in the sidebar, and a new **Accounts** section in Settings
    (admin only): list users, invite (one-time code + link), disable, reset password.
+9. **Plugins (2026-11-21, upstream v0.7.0's plugin host)** — the plugin runtime is one per
+   process with one data folder, so plugins belong to the **owner account** (the admin, else the
+   first account; `src/server/auth/owner-scope.ts`): core-plugin records live under
+   `data/users/<owner>/core-plugin-data/<id>/`, startup/background plugin work runs in the owner's
+   scope, and the plugin routes (`withOwnerAccount`) and per-turn plugin tools serve only the
+   owner — other accounts see no plugins. Plugin code (`data/plugins/`) and on/off state
+   (`data/plugins-state.json`) stay machine-wide. The first-account move carries
+   `core-plugin-data`. Every page lives under `app/(app)/` (AppShell) or `app/(auth)/`
+   (`tests/app-route-groups.test.ts` catches a new upstream page at the top level).
 
 ## Wave 2 — web run mode + tunnel
 

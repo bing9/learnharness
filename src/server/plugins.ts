@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { PATHS, graphFormatFile, renderSettingsFile } from "../../config.ts";
+import { BASE_DATA, PATHS, graphFormatFile, renderSettingsFile } from "../../config.ts";
 import packageJson from "../../package.json";
 import { emit, subscribe } from "../core/events.ts";
 import { createPluginAgentService } from "../agent/plugin-agents.ts";
@@ -21,16 +21,19 @@ import { createPluginDocumentConverter } from "./plugin-documents.ts";
 import type { AgentBuildOptions } from "../agent/teacher-agent.ts";
 import { stores } from "./stores.ts";
 import { isTurnRunning } from "./turn-liveness.ts";
+import { asOwnerAccount, isOwnerScope } from "./auth/owner-scope.ts";
 import { compactionInFlight } from "./compaction.ts";
 
-export const pluginDirectory = path.join(/* turbopackIgnore: true */ PATHS.data, "plugins");
+// Accounts (fork, owner 2026-11-21): plugin code and on/off state are the
+// machine's; records are the owner account's — read inside its scope when
+// the runtime starts (src/server/auth/owner-scope.ts).
+export const pluginDirectory = path.join(/* turbopackIgnore: true */ BASE_DATA, "plugins");
 // Explicitly staged by build-server, not discovered by Next's filesystem tracer.
 const core = {
 	directory: path.join(/* turbopackIgnore: true */ PATHS.root, "core-plugins"),
-	dataDirectory: path.join(/* turbopackIgnore: true */ PATHS.data, "core-plugin-data"),
+	get dataDirectory() { return path.join(/* turbopackIgnore: true */ PATHS.data, "core-plugin-data"); },
 	ids: corePluginIds,
 };
-const coreData = { directory: core.dataDirectory, ids: core.ids };
 type Host = ReturnType<typeof createPluginHost>;
 interface Runtime { host: Host; ready: Promise<void> }
 interface PluginGlobal { __lhPlugins?: Runtime }
@@ -49,6 +52,7 @@ function runtime(): Runtime {
 			catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") return null; throw error; }
 		},
 	});
+	const coreData = { directory: core.dataDirectory, ids: core.ids };
 	const installationErrors: Record<string, string> = Object.create(null);
 	const host = createPluginHost({
 		directory: pluginDirectory, core, appVersion: packageJson.version, installationErrors,
@@ -103,14 +107,15 @@ function runtime(): Runtime {
 	return global.__lhPlugins;
 }
 
-export async function initializePlugins(): Promise<void> { await runtime().ready; }
+export async function initializePlugins(): Promise<void> { await asOwnerAccount(runtime).ready; }
 export async function getPluginHost(): Promise<Host> {
-	const { host, ready } = runtime();
+	const { host, ready } = asOwnerAccount(runtime);
 	await ready;
 	return host;
 }
 /** Await startup once; actual factories run synchronously during per-turn Agent construction. */
 export async function getPluginAgentContributions(): Promise<NonNullable<AgentBuildOptions["pluginContributions"]>> {
+	if (!isOwnerScope()) return () => ({ instructions: [], tools: [] }); // accounts: owner only
 	return (await getPluginHost()).agentContributions;
 }
 /** Await startup before reading canonical truth; the returned resolver itself is synchronous. */

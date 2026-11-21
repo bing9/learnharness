@@ -75,7 +75,7 @@ export async function createFirstAdmin(input: { name: string; email: string; pas
 export function migrateLegacyData(userId: string): void {
 	const target = userDataRoot(userId);
 	fs.mkdirSync(target, { recursive: true });
-	const entries = ["chats", "graph", "jobs", "prompts", "debug", "settings.json"];
+	const entries = ["chats", "graph", "jobs", "prompts", "debug", "settings.json", "core-plugin-data"];
 	for (const entry of entries) {
 		const from = path.join(BASE_DATA, entry);
 		const to = path.join(target, entry);
