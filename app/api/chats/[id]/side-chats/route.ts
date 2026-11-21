@@ -13,16 +13,16 @@
  * createSideChatService directly.
  */
 import { parseSideAskInput, SideChatInputError } from "@/src/core";
-import { sideChats } from "@/src/server";
+import { sideChats, withUser } from "@/src/server";
 
-export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }): Promise<Response> {
+export const GET = withUser(async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }): Promise<Response> {
 	const { id } = await ctx.params;
 	const listed = sideChats.list(id);
 	if (!listed) return Response.json({ error: "Unknown chat" }, { status: 404 });
 	return Response.json(listed);
-}
+});
 
-export async function POST(request: Request, ctx: { params: Promise<{ id: string }> }): Promise<Response> {
+export const POST = withUser(async function POST(request: Request, ctx: { params: Promise<{ id: string }> }): Promise<Response> {
 	const { id } = await ctx.params;
 	let input;
 	try {
@@ -32,4 +32,4 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
 		throw err;
 	}
 	return sideChats.ask(id, input);
-}
+});
