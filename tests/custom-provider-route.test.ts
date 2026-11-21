@@ -57,11 +57,11 @@ function answerWith(status: number, statusText: string, body?: unknown): void {
 	globalThis.fetch = (async () => (body === undefined ? new Response("nope", { status, statusText }) : Response.json(body))) as typeof fetch;
 }
 
-function post(payload: unknown): Promise<Response> {
+async function post(payload: unknown): Promise<Response> {
 	return route.POST(
 		new Request("http://localhost/api/custom-provider", {
 			method: "POST",
-			headers: { "content-type": "application/json", origin: "http://localhost", "if-match": route.GET(new Request("http://localhost/api/custom-provider")).headers.get("etag")! },
+			headers: { "content-type": "application/json", origin: "http://localhost", "if-match": (await route.GET(new Request("http://localhost/api/custom-provider"))).headers.get("etag")! },
 			body: JSON.stringify({ authMode: payload && typeof payload === "object" && "key" in payload ? "apiKey" : "keyless", ...payload as object }),
 		}),
 	);
@@ -132,7 +132,7 @@ describe("POST /api/custom-provider — typed ids and a failed probe", () => {
 		const cp = stored().customProvider!;
 		assert.deepEqual(cp.models, models);
 		assert.deepEqual(cp.overrides, CONNECTED.customProvider.overrides);
-		const get = await route.GET(new Request("http://localhost/api/custom-provider")).json();
+		const get = await (await route.GET(new Request("http://localhost/api/custom-provider"))).json();
 		assert.deepEqual(get.models, models);
 		assert.deepEqual(get.overrides, CONNECTED.customProvider.overrides);
 		// Build from the persisted snapshot: pins win per field, while the

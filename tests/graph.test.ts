@@ -27,7 +27,7 @@ import { deriveView, getGraph, graphSnapshot, mergeFindings, type GraphDeps } fr
 import { coverageSlots } from "../src/core/coverage.ts";
 import { graphStore } from "../src/store/graph.ts";
 import { chatStore } from "../src/store/chats.ts";
-import { GRAPH_FORMAT_FILE, LEDGER_FILES, PATHS, SOURCES_FILE } from "../config.ts";
+import { LEDGER_FILES, PATHS, graphFormatFile, sourcesFile } from "../config.ts";
 import { CURRENT_GRAPH_FORMAT_VERSION } from "../src/core/contracts/graph.ts";
 
 /** The wired fs adapters, exactly what src/server/stores.ts passes in production. */
@@ -43,7 +43,7 @@ function sessionSource(chatId: string): { foldedAt: string } {
 
 // ─── ledger isolation (backup-and-clear of data/graph/*.jsonl) ──────────────
 
-const LEDGER_PATHS = [...Object.values(LEDGER_FILES), SOURCES_FILE];
+const LEDGER_PATHS = [...Object.values(LEDGER_FILES), sourcesFile()];
 const backups: Array<{ file: string; bak: string }> = [];
 const createdChats: string[] = [];
 
@@ -559,19 +559,19 @@ describe("the merger (mergeFindings)", () => {
 	});
 
 	it("refuses a newer graph format before resolving source paths and leaves stored bytes untouched", () => {
-		const original = fs.existsSync(GRAPH_FORMAT_FILE) ? fs.readFileSync(GRAPH_FORMAT_FILE) : null;
+		const original = fs.existsSync(graphFormatFile()) ? fs.readFileSync(graphFormatFile()) : null;
 		const newer = Buffer.from(JSON.stringify({ version: CURRENT_GRAPH_FORMAT_VERSION + 1 }));
-		fs.writeFileSync(GRAPH_FORMAT_FILE, newer);
+		fs.writeFileSync(graphFormatFile(), newer);
 		let sourceReads = 0;
 		try {
 			assert.throws(() => graphSnapshot({ chatStore, graphStore: {
 				...graphStore, readSources: () => { sourceReads++; return graphStore.readSources(); },
 			} }), /older than its data/);
 			assert.equal(sourceReads, 0, "the existing node-read guard still refuses before the new lookup map is built");
-			assert.deepEqual(fs.readFileSync(GRAPH_FORMAT_FILE), newer, "snapshot reads never rewrite the format stamp");
+			assert.deepEqual(fs.readFileSync(graphFormatFile()), newer, "snapshot reads never rewrite the format stamp");
 		} finally {
-			if (original === null) fs.rmSync(GRAPH_FORMAT_FILE);
-			else fs.writeFileSync(GRAPH_FORMAT_FILE, original);
+			if (original === null) fs.rmSync(graphFormatFile());
+			else fs.writeFileSync(graphFormatFile(), original);
 		}
 	});
 

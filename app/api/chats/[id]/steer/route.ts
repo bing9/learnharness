@@ -1,3 +1,4 @@
+import { withUser } from "@/src/server";
 // POST /api/chats/[id]/steer — the composer's mid-turn steering rail
 // (owner arc 2026-10-03). The learner's message for a RUNNING turn rides
 // pi's steering queue: drained at the next response boundary INSIDE the
@@ -13,7 +14,7 @@
 import { ChatInputError, parseUserSteerInput } from "@/src/core";
 import { getChat, prepareAndSteerChat } from "@/src/server";
 
-export async function POST(request: Request, ctx: { params: Promise<{ id: string }> }): Promise<Response> {
+export const POST = withUser(async function POST(request: Request, ctx: { params: Promise<{ id: string }> }): Promise<Response> {
 	const { id } = await ctx.params;
 	if (!getChat(id)) return Response.json({ error: "unknown chat" }, { status: 404 });
 	let input;
@@ -33,4 +34,4 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
 		if (err instanceof ChatInputError) return Response.json({ error: err.message }, { status: 400 });
 		throw err;
 	}
-}
+});

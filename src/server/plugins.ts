@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { PATHS, GRAPH_FORMAT_FILE, RENDER_SETTINGS_FILE } from "../../config.ts";
+import { PATHS, graphFormatFile, renderSettingsFile } from "../../config.ts";
 import packageJson from "../../package.json";
 import { emit, subscribe } from "../core/events.ts";
 import { createPluginAgentService } from "../agent/plugin-agents.ts";
@@ -45,7 +45,7 @@ function runtime(): Runtime {
 		isBusy: isTurnRunning, isCompacting: compactionInFlight,
 		readMetadata(name) {
 			assertGraphFormat();
-			try { return JSON.parse(fs.readFileSync(name === "format.json" ? GRAPH_FORMAT_FILE : RENDER_SETTINGS_FILE, "utf8")); }
+			try { return JSON.parse(fs.readFileSync(name === "format.json" ? graphFormatFile() : renderSettingsFile(), "utf8")); }
 			catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") return null; throw error; }
 		},
 	});

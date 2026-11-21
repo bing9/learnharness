@@ -4,7 +4,7 @@ import { isDeepStrictEqual } from "node:util";
 import { builtinProviders } from "@earendil-works/pi-ai/providers/all";
 import { hasApi, type Api, type Model } from "@earendil-works/pi-ai";
 import { z } from "zod";
-import { PATHS } from "../../config.ts";
+import { BASE_DATA } from "../../config.ts";
 import { setModelCatalogOverlay } from "../agent/models.ts";
 import { AUTH_PROVIDER_KEYS } from "../core/auth-keys.ts";
 import type { ModelCatalogRefreshOutcome } from "../core/contracts/models.ts";
@@ -12,7 +12,10 @@ import { writeFileAtomicSync } from "../store/atomic-write.ts";
 import { keyValue } from "./keys.ts";
 import { readBoundedJson } from "./custom-provider-body.ts";
 
-const FILE = path.join(/* turbopackIgnore: true */ PATHS.data, "model-catalog.json");
+// Machine-wide (fork, owner 2026-11-21): model metadata is not account data —
+// like plugins/ and the provider keys, one file in the base data root, not
+// whichever account's root was active when this module first loaded.
+const FILE = path.join(/* turbopackIgnore: true */ BASE_DATA, "model-catalog.json");
 const MAX_SHARD_BYTES = 2 * 1024 * 1024;
 const MAX_SNAPSHOT_BYTES = 8 * 1024 * 1024;
 const MAX_SHARD_ROWS = 2000;
@@ -239,7 +242,7 @@ async function refresh(state: State): Promise<ModelCatalogRefreshOutcome> {
 		const text = encode(snapshot);
 		if (text === encode(state.snapshot)) return "unchanged";
 		if (Buffer.byteLength(text) > MAX_SNAPSHOT_BYTES) throw new Error("Model catalog exceeds the snapshot limit");
-		fs.mkdirSync(PATHS.data, { recursive: true });
+		fs.mkdirSync(path.dirname(FILE), { recursive: true });
 		writeFileAtomicSync(FILE, text);
 		state.snapshot = snapshot;
 		setModelCatalogOverlay(snapshot);
