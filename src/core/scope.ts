@@ -35,7 +35,15 @@ export type DataScope = {
 	dataRoot: string;
 };
 
-const storage = new AsyncLocalStorage<DataScope>();
+// One tracker per process, not per copy of this module (2026-11-22). Next
+// compiles each route and the instrumentation entry separately, so this file
+// loads several times in one server. Code built once and shared through
+// globalThis — the plugin runtime (`__lhPlugins`) — was reading a copy that
+// no request ever set: the Workbench listed no sessions (base data root).
+interface LhScopeGlobal {
+	__lhDataScope?: AsyncLocalStorage<DataScope>;
+}
+const storage = ((globalThis as typeof globalThis & LhScopeGlobal).__lhDataScope ??= new AsyncLocalStorage<DataScope>());
 
 export function currentScope(): DataScope | undefined {
 	return storage.getStore();
