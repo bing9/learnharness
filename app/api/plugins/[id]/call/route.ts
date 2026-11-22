@@ -1,7 +1,8 @@
-import { pluginTransport } from "@/src/server";
+import { pluginTransport, withOwnerAccount } from "@/src/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
+// Accounts (fork, 2026-11-21): plugins are the owner account's (src/server/auth/owner-scope.ts).
+export const POST = withOwnerAccount(async (request: Request, context: { params: Promise<{ id: string }> }) => {
 	return pluginTransport.call((await context.params).id, request);
-}
+});

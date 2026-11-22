@@ -1,3 +1,4 @@
+import { withUser } from "@/src/server";
 /**
  * POST /api/activity/abort — the dock's END/ABORT control, uniform across
  * process kinds (user-decided contract): body {kind: "job"|"plugin-worker"|"extraction"|"turn", id}
@@ -19,7 +20,7 @@
  */
 import { abortExtraction, abortJob, abortPluginWorkerActivity, abortTurn } from "@/src/server";
 
-export async function POST(req: Request) {
+export const POST = withUser(async function POST(req: Request) {
 	let body: unknown;
 	try {
 		body = await req.json();
@@ -55,4 +56,4 @@ export async function POST(req: Request) {
 	// flight is success — same dock outcome)
 	abortExtraction(id);
 	return Response.json({ ok: true });
-}
+});

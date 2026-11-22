@@ -1,19 +1,19 @@
 /**
  * The custom-theme STORE (theme wave, 2026-11-04): `<id>.json` files under
- * config.THEMES_DIR behind the core ThemeStore port. Files are re-validated
+ * config.themesDir() behind the core ThemeStore port. Files are re-validated
  * on read (a hand-edited or truncated file is skipped, never thrown), and
  * ids follow the slug grammar so a crafted id cannot leave the directory.
  */
 
 import fs from "node:fs";
 import path from "node:path";
-import { THEMES_DIR } from "../../config.ts";
+import { themesDir } from "../../config.ts";
 import { removeLeftoverTemps, writeFileAtomicSync } from "./atomic-write.ts";
 import type { ThemeStore } from "../core/ports.ts";
 import { isBuiltinThemeId, isThemeId, sanitizeThemeFile, type Theme, type ThemeFile } from "../core/themes.ts";
 
 function fileFor(id: string): string {
-	return path.join(/* turbopackIgnore: true */ THEMES_DIR, `${id}.json`);
+	return path.join(/* turbopackIgnore: true */ themesDir(), `${id}.json`);
 }
 
 function read(id: string): Theme | null {
@@ -26,13 +26,13 @@ function read(id: string): Theme | null {
 	}
 }
 
-/** The disk ThemeStore: one `<id>.json` per imported theme under THEMES_DIR;
+/** The disk ThemeStore: one `<id>.json` per imported theme under themesDir();
  *  unreadable or invalid files are skipped, never thrown. */
 export const themeStore: ThemeStore = {
 	listThemes(): Theme[] {
 		let names: string[];
 		try {
-			names = fs.readdirSync(THEMES_DIR);
+			names = fs.readdirSync(themesDir());
 		} catch {
 			return []; // no dir yet = no custom themes
 		}
@@ -47,7 +47,7 @@ export const themeStore: ThemeStore = {
 
 	writeTheme(id: string, theme: ThemeFile): void {
 		if (!isThemeId(id) || isBuiltinThemeId(id)) throw new Error(`Invalid custom theme id "${id}"`);
-		fs.mkdirSync(THEMES_DIR, { recursive: true });
+		fs.mkdirSync(themesDir(), { recursive: true });
 		const file: ThemeFile = { name: theme.name, mode: theme.mode, colors: theme.colors };
 		writeFileAtomicSync(fileFor(id), `${JSON.stringify(file, null, "\t")}\n`);
 	},

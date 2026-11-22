@@ -18,10 +18,13 @@ function hashes(root) {
 	}
 	walk(root); return result;
 }
-export async function verifyCorePlugins({ root, standalone, dataDirectory, url }) {
+export async function verifyCorePlugins({ root, standalone, dataDirectory, url, cookie }) {
 	const ids = readCoreCatalog(root), code = path.join(standalone, "core-plugins"), before = hashes(code);
+	// The fork's auth gate 401s anonymous API calls, so every fetch here must
+	// carry the smoke's session cookie (upstream has no gate and passes none).
+	const headers = cookie ? { Cookie: cookie } : {};
 	const request = async (route, body) => {
-		const response = await fetch(`${url}${route}`, body === undefined ? undefined : { method: route === "/api/plugins" ? "POST" : "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+		const response = await fetch(`${url}${route}`, body === undefined ? { headers } : { method: route === "/api/plugins" ? "POST" : "PUT", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify(body) });
 		const value = await response.json(); assert.equal(response.status, 200, JSON.stringify(value)); return value;
 	};
 	const initial = await request("/api/plugins");
@@ -44,12 +47,12 @@ export async function verifyCorePlugins({ root, standalone, dataDirectory, url }
 			const info = catalog.plugins.find(p => p.id === id); assert.equal(info.origin, "core"); assert.equal(info.status, "active", JSON.stringify(info));
 			assert.ok(fs.statSync(path.join(dataDirectory, "core-plugin-data", id)).isDirectory());
 			for (const entry of [info.manifest.main, info.manifest.styles].filter(Boolean)) {
-				const response = await fetch(`${url}/api/plugins/${id}/assets/${entry}`);
+				const response = await fetch(`${url}/api/plugins/${id}/assets/${entry}`, { headers });
 				const bytes = Buffer.from(await response.arrayBuffer()); assert.equal(response.status, 200, `${id}/${entry}`);
 				assert.deepEqual(bytes, fs.readFileSync(path.join(code, id, entry)));
 			}
 			for (const privateFile of ["backend.cjs", "data/private.txt"]) {
-				const response = await fetch(`${url}/api/plugins/${id}/assets/${privateFile}`); await response.text(); assert.equal(response.status, 404);
+				const response = await fetch(`${url}/api/plugins/${id}/assets/${privateFile}`, { headers }); await response.text(); assert.equal(response.status, 404);
 			}
 		}
 		assert.equal(fs.readFileSync(dataMarker, "utf8"), "do not migrate or change");

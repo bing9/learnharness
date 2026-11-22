@@ -14,7 +14,7 @@ import { after, describe, it } from "node:test";
 const TMP_DATA = fs.mkdtempSync(path.join(os.tmpdir(), "lh-delete-leftovers-"));
 process.env.LH_DATA_DIR = TMP_DATA;
 
-const { PATHS, SOURCES_FILE, PROMPTS_OVERRIDE_DIR, LEDGER_FILES } = await import("../config.ts");
+const { PATHS, sourcesFile, promptsOverrideDir, LEDGER_FILES } = await import("../config.ts");
 const { chatStore } = await import("../src/store/chats.ts");
 const { jobStore } = await import("../src/store/jobs.ts");
 const { graphStore } = await import("../src/store/graph.ts");
@@ -49,9 +49,9 @@ describe("deleting records removes their crash leftovers", () => {
 
 	it("notes sources", () => {
 		graphStore.upsertSource({ id: "src_doomed", filePath: "/notes/doomed.md", importedAt: "2026-10-31T00:00:00.000Z" });
-		leaveCrashCopy(SOURCES_FILE);
+		leaveCrashCopy(sourcesFile());
 		assert.equal(graphStore.deleteSources(new Set(["src_doomed"])), 1);
-		assert.deepEqual(leftovers(path.dirname(SOURCES_FILE)), []);
+		assert.deepEqual(leftovers(path.dirname(sourcesFile())), []);
 	});
 
 	it("graph records purged by session or source deletes", () => {
@@ -63,8 +63,8 @@ describe("deleting records removes their crash leftovers", () => {
 
 	it("prompt edits", () => {
 		promptOverrides.writeOverride("system-prompt.md", "custom base");
-		leaveCrashCopy(path.join(PROMPTS_OVERRIDE_DIR, "system-prompt.md"));
+		leaveCrashCopy(path.join(promptsOverrideDir(), "system-prompt.md"));
 		promptOverrides.deleteOverride("system-prompt.md");
-		assert.deepEqual(leftovers(PROMPTS_OVERRIDE_DIR), []);
+		assert.deepEqual(leftovers(promptsOverrideDir()), []);
 	});
 });
